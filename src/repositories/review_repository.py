@@ -5,7 +5,6 @@ from src.repositories.base import BaseRepository
 
 
 class ReviewRepository(BaseRepository[Review]):
-
     model = Review
 
     async def list_by_venue(

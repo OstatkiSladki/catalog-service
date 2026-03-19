@@ -22,6 +22,8 @@ def configure_logging(settings: Settings) -> None:
     logging.basicConfig(level=settings.log_level.upper(), format="%(message)s", stream=sys.stdout)
     structlog.configure(
         processors=processors,
-        wrapper_class=structlog.make_filtering_bound_logger(logging.getLevelName(settings.log_level.upper())),
+        wrapper_class=structlog.make_filtering_bound_logger(
+            logging.getLevelName(settings.log_level.upper())
+        ),
         cache_logger_on_first_use=True,
     )

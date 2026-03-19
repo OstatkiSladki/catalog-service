@@ -7,7 +7,6 @@ from src.repositories.base import BaseRepository
 
 
 class OfferRepository(BaseRepository[Offer]):
-
     model = Offer
 
     async def list_by_venue(

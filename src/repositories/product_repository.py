@@ -8,7 +8,6 @@ from src.repositories.base import BaseRepository
 
 
 class ProductRepository(BaseRepository[Product]):
-
     model = Product
 
     async def list_by_category(
@@ -31,10 +30,7 @@ class ProductRepository(BaseRepository[Product]):
 
     async def search(self, query: str, *, offset: int = 0, limit: int = 20) -> list[Product]:
         stmt = (
-            self._base_query()
-            .where(Product.name.ilike(f"%{query}%"))
-            .offset(offset)
-            .limit(limit)
+            self._base_query().where(Product.name.ilike(f"%{query}%")).offset(offset).limit(limit)
         )
         result = await self.session.execute(stmt)
         return list(result.scalars().all())

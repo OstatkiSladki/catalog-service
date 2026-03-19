@@ -5,7 +5,6 @@ from src.repositories.base import BaseRepository
 
 
 class CategoryRepository(BaseRepository[Category]):
-
     model = Category
 
     async def get_tree(self) -> list[Category]:

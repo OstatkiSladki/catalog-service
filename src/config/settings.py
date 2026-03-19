@@ -18,7 +18,9 @@ class Settings(BaseSettings):
     host: str = Field(default="0.0.0.0")
     port: int = Field(default=8002)
 
-    database_url: str = Field(default="postgresql+asyncpg://catalog:catalog@localhost:5432/db_catalog")
+    database_url: str = Field(
+        default="postgresql+asyncpg://catalog:catalog@localhost:5432/db_catalog"
+    )
     database_pool_size: int = Field(default=10)
     database_max_overflow: int = Field(default=20)
     database_pool_timeout: int = Field(default=30)

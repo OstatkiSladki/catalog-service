@@ -58,11 +58,7 @@ class BaseRepository(Generic[ModelType]):
         return item
 
     async def update(self, object_id: int, data: dict[str, Any]) -> ModelType | None:
-        stmt = (
-            update(self.model)
-            .where(getattr(self.model, "id") == object_id)
-            .values(**data)
-        )
+        stmt = update(self.model).where(getattr(self.model, "id") == object_id).values(**data)
         await self.session.execute(stmt)
         await self.session.flush()
         return await self.get_by_id(object_id)
