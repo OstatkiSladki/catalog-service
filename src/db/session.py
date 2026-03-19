@@ -44,7 +44,12 @@ class DatabaseSessionManager:
 
   async def session(self) -> AsyncIterator[AsyncSession]:
     async with self._session_factory() as session:
-      yield session
+      try:
+        yield session
+        await session.commit()
+      except Exception:
+        await session.rollback()
+        raise
 
   async def close(self) -> None:
     await self._engine.dispose()

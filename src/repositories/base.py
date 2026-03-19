@@ -54,13 +54,11 @@ class BaseRepository(Generic[ModelType]):
   async def create(self, data: dict[str, Any]) -> ModelType:
     item = self.model(**data)
     self.session.add(item)
-    await self.session.flush()
     return item
 
   async def update(self, object_id: int, data: dict[str, Any]) -> ModelType | None:
     stmt = update(self.model).where(getattr(self.model, "id") == object_id).values(**data)  # noqa: B009
     await self.session.execute(stmt)
-    await self.session.flush()
     return await self.get_by_id(object_id)
 
   async def soft_delete(self, object_id: int) -> bool:
