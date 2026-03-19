@@ -6,11 +6,11 @@ from src.models.product_category import ProductCategory
 from src.models.review import Review
 
 __all__ = [
-    "Category",
-    "Offer",
-    "OfferItem",
-    "OfferStatus",
-    "Product",
-    "ProductCategory",
-    "Review",
+  "Category",
+  "Offer",
+  "OfferItem",
+  "OfferStatus",
+  "Product",
+  "ProductCategory",
+  "Review",
 ]

@@ -9,27 +9,27 @@ T = TypeVar("T")
 
 
 class PaginationMeta(BaseModel):
-    page: int
-    limit: int
-    total_count: int
+  page: int
+  limit: int
+  total_count: int
 
 
 class PaginatedResponse(BaseModel, Generic[T]):
-    items: list[T]
-    pagination: PaginationMeta
+  items: list[T]
+  pagination: PaginationMeta
 
 
 class ErrorResponse(BaseModel):
-    code: str
-    message: str
-    details: dict[str, object] | None = None
-    timestamp: datetime
-    request_id: str
-    trace_id: str | None
+  code: str
+  message: str
+  details: dict[str, object] | None = None
+  timestamp: datetime
+  request_id: str
+  trace_id: str | None
 
 
 class HealthResponse(BaseModel):
-    model_config = ConfigDict(extra="forbid")
+  model_config = ConfigDict(extra="forbid")
 
-    status: str
-    version: str
+  status: str
+  version: str

@@ -34,6 +34,7 @@ asyncio_mode = "auto"
 
 [tool.ruff]
 line-length = 100
+indent-width = 2
 target-version = "py312"
 
 [tool.ruff.lint]
@@ -60,4 +61,11 @@ build-backend = "hatchling.build"
 packages = ["src"]
 
 [tool.hatch.build.targets.sdist]
-include = ["src", "alembic", "README.md", "pyproject.toml", "main.py", ".env.example"]
+include = [
+  "src",
+  "alembic",
+  "README.md",
+  "pyproject.toml",
+  "main.py",
+  ".env.example",
+]
