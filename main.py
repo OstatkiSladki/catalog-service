@@ -1,4 +1,4 @@
-from src.main import app
+from src.app import app
 from src.config.settings import get_settings
 
 if __name__ == "__main__":
