@@ -1,6 +1,8 @@
-def main():
-    print("Hello from catalog-service!")
-
+from src.main import app
+from src.config.settings import get_settings
 
 if __name__ == "__main__":
-    main()
+    import uvicorn
+
+    settings = get_settings()
+    uvicorn.run(app, host=settings.host, port=settings.port)
