@@ -54,7 +54,7 @@
 ```
 
 **Ключевые принципы:**
-- **Database Per Service** — Catalog Service владеет `db_catalog` (schema: `catalog`)
+- **Database Per Service** — Catalog Service владеет `db_catalog` (default schema: `public`)
 - **Event-Driven** — Публикация событий в RabbitMQ для других сервисов
 - **Identity Propagation** — Заголовки идентичности от API Gateway (`X-User-*`)
 - **Soft Delete** — `deleted_at` вместо физического удаления
@@ -590,6 +590,8 @@ Interface BaseRepository[T]:
 | Review | `reviews` | id, user_id, venue_id, order_id, rating, comment, images_json | deleted_at |
 
 **Важные Заметки:**
+- Все таблицы и enum создаются в `public` schema (без явного schema prefix в ORM-моделях).
+- Простые ограничения должны задаваться прямо в `mapped_column` (`nullable`, `unique`, defaults), составные — в `__table_args__`.
 - `venue_id` — Логическая связь с `db_venue` (без FK constraints, валидация через gRPC)
 - `user_id` — Логическая связь с `db_auth` (без FK constraints, валидация через gRPC)
 - `order_id` — Логическая связь с `db_order` (без FK constraints, валидация через gRPC)
@@ -1132,7 +1134,7 @@ alembic downgrade -1
 
 1. **API Specification:** Отдельный файл `catalog-api-specs.yaml` содержит полную OpenAPI спецификацию. Любые изменения в API должны быть отражены там и в этой спецификации синхронно.
 
-2. **Database Schema:** Схема БД определена в `catalog.sql`. Миграции должны соответствовать этой схеме.
+2. **Database Schema:** Схема БД определена в `catalog.sql` и использует `public` schema по умолчанию. Миграции должны соответствовать этой схеме.
 
 3. **gRPC Contracts:** Контракты gRPC для взаимодействия с Venue и Order сервисами должны быть согласованы с командами этих сервисов.
 

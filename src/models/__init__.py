@@ -4,6 +4,7 @@ from src.models.offer_item import OfferItem
 from src.models.product import Product
 from src.models.product_category import ProductCategory
 from src.models.review import Review
+from src.models.base import Base
 
 __all__ = [
   "Category",
@@ -13,4 +14,5 @@ __all__ = [
   "Product",
   "ProductCategory",
   "Review",
+  "Base",
 ]

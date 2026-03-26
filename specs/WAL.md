@@ -3,40 +3,44 @@
 Этот файл содержит текущее состояние проекта. Он обновляется AI в конце каждой сессии, а также при критических изменениях. Человек проверяет его ежедневно.
 
 ## Current Phase
-<!-- Укажи активную задачу: PROP-XXX: краткое описание — статус (IN PROGRESS / BLOCKED) -->
-**PROP‑001: OPROTO Message Verification — IN PROGRESS**
+**PROP-001: Catalog Foundation Bootstrap — IN PROGRESS**
 
 ## Completed
-<!-- Завершённые пункты (можно группировать по PROP). Каждый: ссылка на спеки + краткий итог -->
-- `spec://com.example.oproto/PROP-001#transport` — реализован базовый транспорт (тесты проходят)
-- `spec://com.example.oproto/PROP-001#message-format` — protobuf схемы утверждены
-- `spec://com.example.oproto/PROP-001#security` — TLS настройки, проверено на тестовом стенде
+- `spec://com.ostatki.catalog/PROP-001#foundation` — инициализирован базовый FastAPI каркас (`/api/v1`, `/health`, `/ready`), settings и middleware skeleton.
+- `spec://com.ostatki.catalog/PROP-001#models` — реализованы SQLAlchemy модели по `catalog.sql` + Alembic baseline migration (`20260318_0001`).
+- `spec://com.ostatki.catalog/PROP-001#repositories` — реализованы BaseRepository + доменные repositories (categories/products/offers/reviews).
+- `spec://com.ostatki.catalog/PROP-001#services` — добавлены service skeleton классы с thin orchestration и TODO-маркерами для следующего инкремента.
+- `spec://com.ostatki.catalog/PROP-001#quality` — зеленые проверки: `ruff`, `mypy`, `pytest`.
 
 ## In Progress
-<!-- Детали текущей работы: DONE / TODO с ссылками на спеки -->
 ### DONE
-- `spec://com.example.oproto/PROP-001#verification.normal` — хэш-матчер (`crates/oproto-core/src/verify.rs`)
-- `spec://com.example.oproto/PROP-001#verification.timeout` — базовый таймаут (600 сек), конфиг в `config.rs`
+- `spec://com.ostatki.catalog/PROP-001#foundation.structure` — создана структура каталогов и модулей.
+- `spec://com.ostatki.catalog/PROP-001#foundation.settings` — централизованные настройки и `.env.example`.
+- `spec://com.ostatki.catalog/PROP-001#foundation.db` — async DB session manager и readiness healthcheck.
+- `spec://com.ostatki.catalog/PROP-001#api.crud.categories` — реализованы Category CRUD endpoints + admin auth + tests.
+- `spec://com.ostatki.catalog/PROP-001#api.crud.products` — реализованы Product CRUD endpoints + admin auth.
+- `spec://com.ostatki.catalog/PROP-001#api.crud.offers` — реализованы Offer CRUD endpoints + staff/admin auth.
+- `spec://com.ostatki.catalog/PROP-001#api.crud.reviews` — реализованы Review CRUD endpoints + author/admin auth.
+
 ### TODO
-- `spec://com.example.oproto/PROP-001#verification.degraded` — обработка деградированного режима
-- `spec://com.example.oproto/PROP-001#verification.mismatch` — логика расхождения
+- `spec://com.ostatki.catalog/PROP-001#business.rules` — включить authz/gRPC validations/event publishing.
 
 ## Known Issues
-<!-- Конкретные проблемы: файл, строка, описание -->
-1. **Reconnection после потери сети** — `crates/otg-core/src/telegram.rs:120`, логика не обрабатывает edge‑case.
-2. **Неясная семантика `edge_url`** — protobuf поле `MediaRef.edge_url` требует уточнения.
+1. **Alembic env sync mode** — `alembic/env.py` пока использует синхронный `engine_from_config`; для полноценного async migration flow можно перевести на async engine later.
+2. **Service layer returns** — сервисы пока intentionally thin и используют generic return typing (`Any`) до ввода доменных DTO/response schemas.
 
 ## Decisions Pending
-<!-- Вопросы к человеку, требующие решения -->
-- `spec://com.example.oproto/PROP-001#verification.mismatch` — что делать, если у edge есть сообщение, которого нет в Telegram? Нужно решение: игнорировать, логировать, запрашивать подтверждение?
+- Нет блокирующих решений на текущий момент.
 
 ## Session Context
-<!-- Контекст для следующей сессии: с чего начать, ключевые файлы, что не трогать -->
-- **Start with**: прочитать `spec://com.example.oproto/PROP-001#verification.degraded`
+- **Start with**: `spec://com.ostatki.catalog/PROP-001#business.rules`
 - **Key files**:
-  - `crates/oproto-core/src/verify.rs`
-  - `crates/otg-core/src/telegram.rs`
-- **Run first**: `cargo test -p oproto-core -- --nocapture`
-- **Watch out**: **НЕ трогать** `match_by_hash()` — функция стабильна и покрыта тестами.
+  - `src/app.py`
+  - `src/api/routes/categories.py`
+  - `src/models/`
+  - `src/repositories/`
+  - `alembic/versions/20260318_0001_catalog_baseline.py`
+- **Run first**: `.venv/bin/ruff check . && .venv/bin/mypy src tests && .venv/bin/pytest -q`
+- **Watch out**: при расширении сервисов не дублировать бизнес-валидацию в API layer; держать её в service layer.
 
 ---
