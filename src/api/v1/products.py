@@ -6,7 +6,7 @@ from fastapi import APIRouter, Depends, Query, Response, status
 from sqlalchemy.exc import IntegrityError
 
 from src.api import exceptions
-from src.api.deps import IdentityContext, get_product_repository, require_admin
+from src.api.deps import InternalAuthHeaders, get_product_repository, require_admin
 from src.repositories.product_repository import ProductRepository
 from src.schemas.common import PaginatedResponse, PaginationMeta
 from src.schemas.product import Product as ProductSchema
@@ -57,7 +57,7 @@ async def get_product(
 @router.post("", response_model=ProductSchema, status_code=status.HTTP_201_CREATED)
 async def create_product(
   repository: Annotated[ProductRepository, Depends(get_product_repository)],
-  _: Annotated[IdentityContext, Depends(require_admin)],
+  _: Annotated[InternalAuthHeaders, Depends(require_admin)],
   payload: ProductCreate,
 ) -> ProductSchema:
   service = _get_service(repository)
@@ -73,7 +73,7 @@ async def create_product(
 @router.patch("/{product_id}", response_model=ProductSchema)
 async def update_product(
   repository: Annotated[ProductRepository, Depends(get_product_repository)],
-  _: Annotated[IdentityContext, Depends(require_admin)],
+  _: Annotated[InternalAuthHeaders, Depends(require_admin)],
   product_id: int,
   payload: ProductUpdate,
 ) -> ProductSchema:
@@ -95,7 +95,7 @@ async def update_product(
 )
 async def delete_product(
   repository: Annotated[ProductRepository, Depends(get_product_repository)],
-  _: Annotated[IdentityContext, Depends(require_admin)],
+  _: Annotated[InternalAuthHeaders, Depends(require_admin)],
   product_id: int,
 ) -> Response:
   service = _get_service(repository)

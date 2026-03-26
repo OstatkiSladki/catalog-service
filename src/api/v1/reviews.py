@@ -7,9 +7,9 @@ from sqlalchemy.exc import IntegrityError
 
 from src.api import exceptions
 from src.api.deps import (
-  IdentityContext,
-  get_identity_context,
-  get_optional_identity_context,
+  InternalAuthHeaders,
+  get_internal_auth_headers,
+  get_optional_auth_headers,
   get_review_repository,
 )
 from src.repositories.review_repository import ReviewRepository
@@ -33,7 +33,7 @@ def _offset(page: int, limit: int) -> int:
 async def list_reviews(
   repository: Annotated[ReviewRepository, Depends(get_review_repository)],
   params: Annotated[ReviewListQuery, Query()],
-  identity: Annotated[IdentityContext | None, Depends(get_optional_identity_context)],
+  identity: Annotated[InternalAuthHeaders | None, Depends(get_optional_auth_headers)],
 ) -> PaginatedResponse[ReviewSchema]:
   if params.user_id is not None:
     if identity is None:
@@ -69,7 +69,7 @@ async def get_review(
 @router.post("", response_model=ReviewSchema, status_code=status.HTTP_201_CREATED)
 async def create_review(
   repository: Annotated[ReviewRepository, Depends(get_review_repository)],
-  identity: Annotated[IdentityContext, Depends(get_identity_context)],
+  identity: Annotated[InternalAuthHeaders, Depends(get_internal_auth_headers)],
   payload: ReviewCreate,
 ) -> ReviewSchema:
   service = _get_service(repository)
@@ -87,7 +87,7 @@ async def create_review(
 @router.patch("/{review_id}", response_model=ReviewSchema)
 async def update_review(
   repository: Annotated[ReviewRepository, Depends(get_review_repository)],
-  identity: Annotated[IdentityContext, Depends(get_identity_context)],
+  identity: Annotated[InternalAuthHeaders, Depends(get_internal_auth_headers)],
   review_id: int,
   payload: ReviewUpdate,
 ) -> ReviewSchema:
@@ -108,7 +108,7 @@ async def update_review(
 )
 async def delete_review(
   repository: Annotated[ReviewRepository, Depends(get_review_repository)],
-  identity: Annotated[IdentityContext, Depends(get_identity_context)],
+  identity: Annotated[InternalAuthHeaders, Depends(get_internal_auth_headers)],
   review_id: int,
 ) -> Response:
   service = _get_service(repository)

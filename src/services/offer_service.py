@@ -3,7 +3,7 @@ from __future__ import annotations
 from datetime import UTC, datetime
 from decimal import Decimal
 
-from src.api.deps import IdentityContext
+from src.api.deps import InternalAuthHeaders
 from src.models.offer import Offer, OfferStatus
 from src.repositories.offer_repository import OfferRepository
 from src.schemas.offer import OfferCreate, OfferUpdate
@@ -47,7 +47,7 @@ class OfferService:
     )
     return items, total_count
 
-  async def create(self, payload: OfferCreate, identity: IdentityContext) -> Offer:
+  async def create(self, payload: OfferCreate, identity: InternalAuthHeaders) -> Offer:
     self._ensure_can_manage_venue(identity, payload.venue_id)
     self._validate_prices(payload.current_price, payload.original_price)
     self._validate_expiration(payload.expires_at)
@@ -59,7 +59,7 @@ class OfferService:
     self,
     offer_id: int,
     payload: OfferUpdate,
-    identity: IdentityContext,
+    identity: InternalAuthHeaders,
   ) -> Offer | None:
     existing = await self.repository.get_by_id(offer_id)
     if existing is None:
@@ -74,7 +74,7 @@ class OfferService:
     items = data.pop("items", None)
     return await self.repository.update_with_items(offer_id, data, items)
 
-  async def cancel(self, offer_id: int, identity: IdentityContext) -> bool:
+  async def cancel(self, offer_id: int, identity: InternalAuthHeaders) -> bool:
     existing = await self.repository.get_by_id(offer_id)
     if existing is None:
       return False
@@ -90,7 +90,7 @@ class OfferService:
     if expires_at <= datetime.now(UTC):
       raise OfferValidationError("Offer expiration must be in the future")
 
-  def _ensure_can_manage_venue(self, identity: IdentityContext, venue_id: int) -> None:
+  def _ensure_can_manage_venue(self, identity: InternalAuthHeaders, venue_id: int) -> None:
     if identity.user_role == "admin":
       return
     if identity.user_role != "staff":

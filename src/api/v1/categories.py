@@ -6,7 +6,7 @@ from fastapi import APIRouter, Depends, Query, Response, status
 from sqlalchemy.exc import IntegrityError
 
 from src.api import exceptions
-from src.api.deps import IdentityContext, get_category_repository, require_admin
+from src.api.deps import InternalAuthHeaders, get_category_repository, require_admin
 from src.repositories.category_repository import CategoryRepository
 from src.schemas.category import Category as CategorySchema
 from src.schemas.category import CategoryCreate, CategoryListQuery, CategoryUpdate
@@ -44,7 +44,7 @@ async def get_category(
 @router.post("", response_model=CategorySchema, status_code=status.HTTP_201_CREATED)
 async def create_category(
   repository: Annotated[CategoryRepository, Depends(get_category_repository)],
-  _: Annotated[IdentityContext, Depends(require_admin)],
+  _: Annotated[InternalAuthHeaders, Depends(require_admin)],
   payload: CategoryCreate,
 ) -> CategorySchema:
   service = _get_service(repository)
@@ -60,7 +60,7 @@ async def create_category(
 @router.patch("/{category_id}", response_model=CategorySchema)
 async def update_category(
   repository: Annotated[CategoryRepository, Depends(get_category_repository)],
-  _: Annotated[IdentityContext, Depends(require_admin)],
+  _: Annotated[InternalAuthHeaders, Depends(require_admin)],
   category_id: int,
   payload: CategoryUpdate,
 ) -> CategorySchema:
@@ -83,7 +83,7 @@ async def update_category(
 )
 async def delete_category(
   repository: Annotated[CategoryRepository, Depends(get_category_repository)],
-  _: Annotated[IdentityContext, Depends(require_admin)],
+  _: Annotated[InternalAuthHeaders, Depends(require_admin)],
   category_id: int,
 ) -> Response:
   service = _get_service(repository)

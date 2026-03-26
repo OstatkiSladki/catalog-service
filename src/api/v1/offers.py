@@ -7,7 +7,7 @@ from sqlalchemy.exc import IntegrityError
 
 from src.api import exceptions
 from src.api.deps import (
-  IdentityContext,
+  InternalAuthHeaders,
   get_offer_repository,
   require_staff_or_admin,
 )
@@ -62,7 +62,7 @@ async def get_offer(
 @router.post("", response_model=OfferSchema)
 async def create_offer(
   repository: Annotated[OfferRepository, Depends(get_offer_repository)],
-  identity: Annotated[IdentityContext, Depends(require_staff_or_admin)],
+  identity: Annotated[InternalAuthHeaders, Depends(require_staff_or_admin)],
   payload: OfferCreate,
 ) -> OfferSchema:
   service = _get_service(repository)
@@ -80,7 +80,7 @@ async def create_offer(
 @router.patch("/{offer_id}", response_model=OfferSchema)
 async def update_offer(
   repository: Annotated[OfferRepository, Depends(get_offer_repository)],
-  identity: Annotated[IdentityContext, Depends(require_staff_or_admin)],
+  identity: Annotated[InternalAuthHeaders, Depends(require_staff_or_admin)],
   offer_id: int,
   payload: OfferUpdate,
 ) -> OfferSchema:
@@ -104,7 +104,7 @@ async def update_offer(
 )
 async def cancel_offer(
   repository: Annotated[OfferRepository, Depends(get_offer_repository)],
-  identity: Annotated[IdentityContext, Depends(require_staff_or_admin)],
+  identity: Annotated[InternalAuthHeaders, Depends(require_staff_or_admin)],
   offer_id: int,
 ) -> Response:
   service = _get_service(repository)

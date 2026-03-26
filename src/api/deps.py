@@ -3,94 +3,178 @@ from __future__ import annotations
 from collections.abc import AsyncIterator
 from typing import Annotated
 
-from fastapi import Depends, Header, Request
+from fastapi import Depends, Header, Request, HTTPException, Security, status
+from fastapi.security import APIKeyHeader
 from pydantic import BaseModel
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from src.api import exceptions
 from src.repositories.category_repository import CategoryRepository
 from src.repositories.offer_repository import OfferRepository
 from src.repositories.product_repository import ProductRepository
 from src.repositories.review_repository import ReviewRepository
+from src.schemas.auth import StaffRole, UsersRole
 
 
-class IdentityContext(BaseModel):
-  user_id: str
-  user_role: str
-  request_id: str
-  user_venue_id: int | None = None
+x_user_id_header = APIKeyHeader(name="X-User-ID", scheme_name="X-User-ID", auto_error=False)
+x_user_role_header = APIKeyHeader(name="X-User-Role", scheme_name="X-User-Role", auto_error=False)
+x_user_staff_role_header = APIKeyHeader(name="X-User-Staff-Role", scheme_name="X-User-Staff-Role", auto_error=False)
+x_user_email_header = APIKeyHeader(name="X-User-Email", scheme_name="X-User-Email", auto_error=False)
+x_user_is_active_header = APIKeyHeader(name="X-User-Is-Active", scheme_name="X-User-Is-Active", auto_error=False)
+x_user_is_verified_header = APIKeyHeader(name="X-User-Is-Verified", scheme_name="X-User-Is-Verified", auto_error=False)
+x_user_venue_id_header = APIKeyHeader(name="X-User-Venue-ID", scheme_name="X-User-Venue-ID", auto_error=False)
+x_request_id_header = APIKeyHeader(name="X-Request-ID", scheme_name="X-Request-ID", auto_error=False)
 
 
-async def get_identity_context(
-  x_user_id: Annotated[str | None, Header(alias="X-User-ID")] = None,
-  x_user_role: Annotated[str | None, Header(alias="X-User-Role")] = None,
-  x_request_id: Annotated[str | None, Header(alias="X-Request-ID")] = None,
-  x_user_venue_id: Annotated[int | None, Header(alias="X-User-Venue-ID")] = None,
-) -> IdentityContext:
-  if not x_user_id or not x_request_id:
-    raise exceptions.missing_required_identity_headers()
-  return IdentityContext(
-    user_id=x_user_id,
-    user_role=x_user_role or "user",
-    request_id=x_request_id,
-    user_venue_id=x_user_venue_id,
-  )
+class InternalAuthHeaders(BaseModel):
+    user_id: int
+    role: UsersRole
+    staff_role: StaffRole | None = None
+    email: str
+    is_active: bool
+    is_verified: bool
+    venue_id: int | None = None
+    request_id: str
+
+
+def _parse_bool_header(name: str, value: str | None, request_id: str) -> bool:
+    if value is None:
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            detail={"code": "VALIDATION_ERROR", "message": f"{name} header is required", "request_id": request_id},
+        )
+    value_lower = value.lower()
+    if value_lower in {"true", "1"}:
+        return True
+    if value_lower in {"false", "0"}:
+        return False
+    raise HTTPException(
+        status_code=status.HTTP_401_UNAUTHORIZED,
+        detail={"code": "VALIDATION_ERROR", "message": f"{name} header must be boolean", "request_id": request_id},
+    )
+
+def _require_header(name: str, value: str | None, request_id: str) -> str:
+    if value is None:
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            detail={"code": "VALIDATION_ERROR", "message": f"{name} header is required", "request_id": request_id},
+        )
+    return value
+
+def _parse_int_header(name: str, value: str, request_id: str) -> int:
+    try:
+        return int(value)
+    except ValueError as exc:
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            detail={"code": "VALIDATION_ERROR", "message": f"{name} header must be integer", "request_id": request_id},
+        ) from exc
+
+
+def get_internal_auth_headers(
+    x_user_id: str | None = Security(x_user_id_header),
+    x_user_role: str | None = Security(x_user_role_header),
+    x_user_staff_role: str | None = Security(x_user_staff_role_header),
+    x_user_email: str | None = Security(x_user_email_header),
+    x_user_is_active: str | None = Security(x_user_is_active_header),
+    x_user_is_verified: str | None = Security(x_user_is_verified_header),
+    x_user_venue_id: str | None = Security(x_user_venue_id_header),
+    x_request_id: str | None = Security(x_request_id_header),
+) -> InternalAuthHeaders:
+    request_id = x_request_id or "unknown-request"
+    required_user_id = _require_header("X-User-ID", x_user_id, request_id)
+    required_user_role = _require_header("X-User-Role", x_user_role, request_id)
+    required_user_email = _require_header("X-User-Email", x_user_email, request_id)
+    required_request_id = _require_header("X-Request-ID", x_request_id, request_id)
+
+    try:
+        parsed_role = UsersRole(required_user_role)
+    except ValueError as exc:
+        raise HTTPException(
+            status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
+            detail={"code": "VALIDATION_ERROR", "message": "X-User-Role header has invalid value", "request_id": required_request_id},
+        ) from exc
+
+    parsed_staff_role: StaffRole | None = None
+    if x_user_staff_role is not None:
+        try:
+            parsed_staff_role = StaffRole(x_user_staff_role)
+        except ValueError as exc:
+            raise HTTPException(
+                status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
+                detail={"code": "VALIDATION_ERROR", "message": "X-User-Staff-Role header has invalid value", "request_id": required_request_id},
+            ) from exc
+
+    parsed_venue_id: int | None = None
+    if x_user_venue_id is not None:
+        parsed_venue_id = _parse_int_header("X-User-Venue-ID", x_user_venue_id, required_request_id)
+
+    return InternalAuthHeaders(
+        user_id=_parse_int_header("X-User-ID", required_user_id, required_request_id),
+        role=parsed_role,
+        staff_role=parsed_staff_role,
+        email=required_user_email,
+        is_active=_parse_bool_header("X-User-Is-Active", x_user_is_active, required_request_id),
+        is_verified=_parse_bool_header("X-User-Is-Verified", x_user_is_verified, required_request_id),
+        venue_id=parsed_venue_id,
+        request_id=required_request_id,
+    )
+
+
+async def get_optional_auth_headers(
+    x_user_id: str | None = Security(x_user_id_header),
+    x_user_role: str | None = Security(x_user_role_header),
+    x_user_staff_role: str | None = Security(x_user_staff_role_header),
+    x_user_email: str | None = Security(x_user_email_header),
+    x_user_is_active: str | None = Security(x_user_is_active_header),
+    x_user_is_verified: str | None = Security(x_user_is_verified_header),
+    x_user_venue_id: str | None = Security(x_user_venue_id_header),
+    x_request_id: str | None = Security(x_request_id_header),
+) -> InternalAuthHeaders | None:
+    if not x_user_id:
+        return None
+    return get_internal_auth_headers(
+        x_user_id=x_user_id,
+        x_user_role=x_user_role,
+        x_user_staff_role=x_user_staff_role,
+        x_user_email=x_user_email,
+        x_user_is_active=x_user_is_active,
+        x_user_is_verified=x_user_is_verified,
+        x_user_venue_id=x_user_venue_id,
+        x_request_id=x_request_id,
+    )
 
 
 async def require_admin(
-  identity: Annotated[IdentityContext, Depends(get_identity_context)],
-) -> IdentityContext:
-  if identity.user_role != "admin":
-    raise exceptions.admin_role_required()
-  return identity
+    identity: Annotated[InternalAuthHeaders, Depends(get_internal_auth_headers)],
+) -> InternalAuthHeaders:
+    if identity.staff_role != StaffRole.ADMIN:
+        raise HTTPException(status.HTTP_403_FORBIDDEN, "Admin role required")
+    return identity
 
 
 async def require_staff_or_admin(
-  identity: Annotated[IdentityContext, Depends(get_identity_context)],
-) -> IdentityContext:
-  if identity.user_role not in {"staff", "admin"}:
-    raise exceptions.staff_or_admin_role_required()
-  return identity
-
-
-async def get_optional_identity_context(
-  x_user_id: Annotated[str | None, Header(alias="X-User-ID")] = None,
-  x_user_role: Annotated[str | None, Header(alias="X-User-Role")] = None,
-  x_request_id: Annotated[str | None, Header(alias="X-Request-ID")] = None,
-  x_user_venue_id: Annotated[int | None, Header(alias="X-User-Venue-ID")] = None,
-) -> IdentityContext | None:
-  if all(value is None for value in (x_user_id, x_user_role, x_request_id, x_user_venue_id)):
-    return None
-  if not x_user_id or not x_request_id:
-    raise exceptions.missing_required_identity_headers()
-  return IdentityContext(
-    user_id=x_user_id,
-    user_role=x_user_role or "user",
-    request_id=x_request_id,
-    user_venue_id=x_user_venue_id,
-  )
+    identity: Annotated[InternalAuthHeaders, Depends(get_internal_auth_headers)],
+) -> InternalAuthHeaders:
+    if identity.role != UsersRole.STAFF:
+        raise HTTPException(status.HTTP_403_FORBIDDEN, "Staff role required")
+    return identity
 
 
 async def get_db_session(request: Request) -> AsyncIterator[AsyncSession]:
-  session_manager = request.app.state.session_manager
-  async for session in session_manager.session():
-    yield session
-
+    session_manager = request.app.state.session_manager
+    async for session in session_manager.session():
+        yield session
 
 DbSession = Annotated[AsyncSession, Depends(get_db_session)]
 
-
 def get_category_repository(session: DbSession) -> CategoryRepository:
-  return CategoryRepository(session)
-
+    return CategoryRepository(session)
 
 def get_product_repository(session: DbSession) -> ProductRepository:
-  return ProductRepository(session)
-
+    return ProductRepository(session)
 
 def get_offer_repository(session: DbSession) -> OfferRepository:
-  return OfferRepository(session)
-
+    return OfferRepository(session)
 
 def get_review_repository(session: DbSession) -> ReviewRepository:
-  return ReviewRepository(session)
+    return ReviewRepository(session)
