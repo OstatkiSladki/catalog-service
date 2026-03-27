@@ -30,6 +30,7 @@ def create_app(settings: Settings | None = None) -> FastAPI:
     title=app_settings.app_name,
     version=app_settings.app_version,
     debug=app_settings.debug,
+    root_path=app_settings.app_root_path,
     lifespan=lifespan,
   )
   app.add_middleware(RequestContextMiddleware)

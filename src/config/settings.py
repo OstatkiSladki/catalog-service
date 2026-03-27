@@ -14,6 +14,7 @@ class Settings(BaseSettings):
   app_version: str = Field(default="1.0.0")
   app_env: str = Field(default="development")
   debug: bool = Field(default=False)
+  app_root_path: str = Field(default="")
 
   host: str = Field(default="0.0.0.0")
   port: int = Field(default=8002)
