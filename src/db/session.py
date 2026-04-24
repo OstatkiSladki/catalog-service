@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 from collections.abc import AsyncIterator
+from contextlib import asynccontextmanager
 
 from sqlalchemy import text
 from sqlalchemy.ext.asyncio import (
@@ -50,6 +51,11 @@ class DatabaseSessionManager:
       except Exception:
         await session.rollback()
         raise
+
+  @asynccontextmanager
+  async def session_context(self) -> AsyncIterator[AsyncSession]:
+    async for session in self.session():
+      yield session
 
   async def close(self) -> None:
     await self._engine.dispose()

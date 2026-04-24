@@ -3,7 +3,10 @@ from __future__ import annotations
 from datetime import UTC, datetime
 from decimal import Decimal
 
+import grpc
+
 from src.api.deps import InternalAuthHeaders
+from src.grpc.clients import CircuitBreakerOpenError, GrpcDependencyError, VenueDirectoryClient
 from src.models.offer import Offer, OfferStatus
 from src.repositories.offer_repository import OfferRepository
 from src.schemas.offer import OfferCreate, OfferUpdate
@@ -17,9 +20,14 @@ class OfferForbiddenError(PermissionError):
   pass
 
 
+class OfferDependencyError(RuntimeError):
+  pass
+
+
 class OfferService:
-  def __init__(self, repository: OfferRepository) -> None:
+  def __init__(self, repository: OfferRepository, venue_client: VenueDirectoryClient) -> None:
     self.repository = repository
+    self.venue_client = venue_client
 
   async def get_by_id(self, offer_id: int) -> Offer | None:
     return await self.repository.get_by_id(offer_id)
@@ -51,6 +59,7 @@ class OfferService:
     self._ensure_can_manage_venue(identity, payload.venue_id)
     self._validate_prices(payload.current_price, payload.original_price)
     self._validate_expiration(payload.expires_at)
+    await self._ensure_venue_exists(payload.venue_id)
     data = payload.model_dump()
     items = data.pop("items")
     return await self.repository.create_with_items(data, items)
@@ -97,3 +106,13 @@ class OfferService:
       raise OfferForbiddenError("Only staff or admin can manage offers")
     if identity.user_venue_id != venue_id:
       raise OfferForbiddenError("Staff can manage offers only for their own venue")
+
+  async def _ensure_venue_exists(self, venue_id: int) -> None:
+    try:
+      await self.venue_client.get_venue_by_id(venue_id)
+    except grpc.aio.AioRpcError as exc:
+      if exc.code() == grpc.StatusCode.NOT_FOUND:
+        raise OfferValidationError("Venue not found") from exc
+      raise OfferDependencyError("Venue gRPC validation failed") from exc
+    except (GrpcDependencyError, CircuitBreakerOpenError) as exc:
+      raise OfferDependencyError("Venue gRPC validation failed") from exc

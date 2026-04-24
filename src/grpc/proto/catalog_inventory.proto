@@ -1,0 +1,61 @@
+syntax = "proto3";
+
+package ostatki.grpc.v1;
+
+import "google/protobuf/timestamp.proto";
+
+service CatalogInventoryService {
+  rpc CheckAvailability(CheckAvailabilityRequest) returns (CheckAvailabilityResponse);
+  rpc GetOfferSnapshot(GetOfferSnapshotRequest) returns (GetOfferSnapshotResponse);
+  rpc ReserveItems(ReserveItemsRequest) returns (ReserveItemsResponse);
+  rpc ConfirmReservation(ConfirmReservationRequest) returns (ConfirmReservationResponse);
+  rpc CancelReservation(CancelReservationRequest) returns (CancelReservationResponse);
+}
+
+message CheckAvailabilityRequest {
+  repeated int64 offer_ids = 1;
+}
+
+message CheckAvailabilityResponse {
+  bool available = 1;
+  map<int64, int32> quantities = 2;
+}
+
+message GetOfferSnapshotRequest {
+  int64 offer_id = 1;
+}
+
+message GetOfferSnapshotResponse {
+  int64 offer_id = 1;
+  int64 venue_id = 2;
+  string product_name = 3;
+  string price = 4;
+  bool is_active = 5;
+}
+
+message ReserveItemsRequest {
+  int64 offer_id = 1;
+  int32 quantity = 2;
+  int64 reservation_owner = 3;
+}
+
+message ReserveItemsResponse {
+  string reservation_id = 1;
+  google.protobuf.Timestamp expires_at = 2;
+}
+
+message ConfirmReservationRequest {
+  string reservation_id = 1;
+}
+
+message ConfirmReservationResponse {
+  bool success = 1;
+}
+
+message CancelReservationRequest {
+  string reservation_id = 1;
+}
+
+message CancelReservationResponse {
+  bool success = 1;
+}

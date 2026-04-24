@@ -1,6 +1,9 @@
 from __future__ import annotations
 
+import grpc
+
 from src.api.deps import InternalAuthHeaders
+from src.grpc.clients import CircuitBreakerOpenError, GrpcDependencyError, OrderQueryClient
 from src.models.review import Review
 from src.repositories.review_repository import ReviewRepository
 from src.schemas.review import ReviewCreate, ReviewUpdate
@@ -10,9 +13,14 @@ class ReviewForbiddenError(PermissionError):
   pass
 
 
+class ReviewDependencyError(RuntimeError):
+  pass
+
+
 class ReviewService:
-  def __init__(self, repository: ReviewRepository) -> None:
+  def __init__(self, repository: ReviewRepository, order_client: OrderQueryClient) -> None:
     self.repository = repository
+    self.order_client = order_client
 
   async def get_by_id(self, review_id: int) -> Review | None:
     return await self.repository.get_by_id(review_id)
@@ -40,10 +48,9 @@ class ReviewService:
     existing = await self.repository.get_by_order(payload.order_id)
     if existing is not None:
       raise ValueError("Review for this order already exists")
+    await self._validate_order(payload, identity)
     data = payload.model_dump()
     data["user_id"] = int(identity.user_id)
-    # TODO: spec://com.ostatki.catalog/PROP-001#business.rules
-    # Validate order ownership via Order Service gRPC.
     return await self.repository.create(data)
 
   async def update(
@@ -72,3 +79,18 @@ class ReviewService:
       raise ReviewForbiddenError("Staff cannot manage reviews")
     if int(identity.user_id) != owner_user_id:
       raise ReviewForbiddenError("Only review author can manage this review")
+
+  async def _validate_order(self, payload: ReviewCreate, identity: InternalAuthHeaders) -> None:
+    try:
+      order = await self.order_client.get_order_by_id(payload.order_id)
+    except grpc.aio.AioRpcError as exc:
+      if exc.code() == grpc.StatusCode.NOT_FOUND:
+        raise ValueError("Order not found") from exc
+      raise ReviewDependencyError("Order gRPC validation failed") from exc
+    except (GrpcDependencyError, CircuitBreakerOpenError) as exc:
+      raise ReviewDependencyError("Order gRPC validation failed") from exc
+
+    if int(order.user_id) != int(identity.user_id):
+      raise ValueError("Order does not belong to the user")
+    if int(order.venue_id) != int(payload.venue_id):
+      raise ValueError("Order venue does not match review venue")

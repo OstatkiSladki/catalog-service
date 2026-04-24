@@ -9,20 +9,22 @@ from src.api import exceptions
 from src.api.deps import (
   InternalAuthHeaders,
   get_internal_auth_headers,
+  get_order_query_client,
   get_optional_auth_headers,
   get_review_repository,
 )
+from src.grpc.clients import OrderQueryClient
 from src.repositories.review_repository import ReviewRepository
 from src.schemas.common import PaginatedResponse, PaginationMeta
 from src.schemas.review import Review as ReviewSchema
 from src.schemas.review import ReviewCreate, ReviewListQuery, ReviewUpdate
-from src.services.review_service import ReviewForbiddenError, ReviewService
+from src.services.review_service import ReviewDependencyError, ReviewForbiddenError, ReviewService
 
 router = APIRouter(prefix="/reviews")
 
 
-def _get_service(repository: ReviewRepository) -> ReviewService:
-  return ReviewService(repository)
+def _get_service(repository: ReviewRepository, order_client: OrderQueryClient) -> ReviewService:
+  return ReviewService(repository, order_client)
 
 
 def _offset(page: int, limit: int) -> int:
@@ -32,6 +34,7 @@ def _offset(page: int, limit: int) -> int:
 @router.get("", response_model=PaginatedResponse[ReviewSchema])
 async def list_reviews(
   repository: Annotated[ReviewRepository, Depends(get_review_repository)],
+  order_client: Annotated[OrderQueryClient, Depends(get_order_query_client)],
   params: Annotated[ReviewListQuery, Query()],
   identity: Annotated[InternalAuthHeaders | None, Depends(get_optional_auth_headers)],
 ) -> PaginatedResponse[ReviewSchema]:
@@ -41,7 +44,7 @@ async def list_reviews(
     if identity.user_role != "admin" and int(identity.user_id) != params.user_id:
       raise exceptions.own_reviews_filter_only()
 
-  service = _get_service(repository)
+  service = _get_service(repository, order_client)
   items, total_count = await service.list(
     venue_id=params.venue_id,
     user_id=params.user_id,
@@ -58,8 +61,9 @@ async def list_reviews(
 async def get_review(
   review_id: int,
   repository: Annotated[ReviewRepository, Depends(get_review_repository)],
+  order_client: Annotated[OrderQueryClient, Depends(get_order_query_client)],
 ) -> ReviewSchema:
-  service = _get_service(repository)
+  service = _get_service(repository, order_client)
   review = await service.get_by_id(review_id)
   if review is None:
     raise exceptions.review_not_found()
@@ -69,10 +73,11 @@ async def get_review(
 @router.post("", response_model=ReviewSchema, status_code=status.HTTP_201_CREATED)
 async def create_review(
   repository: Annotated[ReviewRepository, Depends(get_review_repository)],
+  order_client: Annotated[OrderQueryClient, Depends(get_order_query_client)],
   identity: Annotated[InternalAuthHeaders, Depends(get_internal_auth_headers)],
   payload: ReviewCreate,
 ) -> ReviewSchema:
-  service = _get_service(repository)
+  service = _get_service(repository, order_client)
   try:
     review = await service.create(payload, identity)
     return ReviewSchema.model_validate(review)
@@ -80,6 +85,8 @@ async def create_review(
     raise exceptions.forbidden(str(exc)) from exc
   except ValueError as exc:
     raise exceptions.conflict(str(exc)) from exc
+  except ReviewDependencyError as exc:
+    raise exceptions.service_unavailable(str(exc)) from exc
   except IntegrityError as exc:
     raise exceptions.review_conflict() from exc
 
@@ -87,11 +94,12 @@ async def create_review(
 @router.patch("/{review_id}", response_model=ReviewSchema)
 async def update_review(
   repository: Annotated[ReviewRepository, Depends(get_review_repository)],
+  order_client: Annotated[OrderQueryClient, Depends(get_order_query_client)],
   identity: Annotated[InternalAuthHeaders, Depends(get_internal_auth_headers)],
   review_id: int,
   payload: ReviewUpdate,
 ) -> ReviewSchema:
-  service = _get_service(repository)
+  service = _get_service(repository, order_client)
   try:
     review = await service.update(review_id, payload, identity)
     if review is None:
@@ -108,10 +116,11 @@ async def update_review(
 )
 async def delete_review(
   repository: Annotated[ReviewRepository, Depends(get_review_repository)],
+  order_client: Annotated[OrderQueryClient, Depends(get_order_query_client)],
   identity: Annotated[InternalAuthHeaders, Depends(get_internal_auth_headers)],
   review_id: int,
 ) -> Response:
-  service = _get_service(repository)
+  service = _get_service(repository, order_client)
   try:
     deleted = await service.archive(review_id, identity)
     if not deleted:

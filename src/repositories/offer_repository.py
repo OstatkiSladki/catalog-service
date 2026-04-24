@@ -16,7 +16,33 @@ class OfferRepository(BaseRepository[Offer]):
   model = Offer
 
   async def get_by_id(self, object_id: int) -> Offer | None:
-    stmt = select(Offer).options(selectinload(Offer.items)).where(Offer.id == object_id)
+    stmt = (
+      select(Offer)
+      .options(selectinload(Offer.items).selectinload(OfferItem.product))
+      .where(Offer.id == object_id)
+    )
+    result = await self.session.execute(stmt)
+    return result.scalar_one_or_none()
+
+  async def get_by_ids(self, offer_ids: list[int]) -> list[Offer]:
+    if not offer_ids:
+      return []
+    stmt = (
+      select(Offer)
+      .options(selectinload(Offer.items).selectinload(OfferItem.product))
+      .where(Offer.id.in_(offer_ids))
+      .order_by(Offer.id)
+    )
+    result = await self.session.execute(stmt)
+    return list(result.scalars().unique().all())
+
+  async def get_by_id_for_update(self, offer_id: int) -> Offer | None:
+    stmt = (
+      select(Offer)
+      .options(selectinload(Offer.items).selectinload(OfferItem.product))
+      .where(Offer.id == offer_id)
+      .with_for_update()
+    )
     result = await self.session.execute(stmt)
     return result.scalar_one_or_none()
 
@@ -30,7 +56,7 @@ class OfferRepository(BaseRepository[Offer]):
     limit: int,
   ) -> list[Offer]:
     now = datetime.now(UTC)
-    stmt = select(Offer).options(selectinload(Offer.items))
+    stmt = select(Offer).options(selectinload(Offer.items).selectinload(OfferItem.product))
     if venue_id is not None:
       stmt = stmt.where(Offer.venue_id == venue_id)
     if status is None:

@@ -1,18 +1,30 @@
 from __future__ import annotations
-import asyncio
 
+import asyncio
 from logging.config import fileConfig
 
 from sqlalchemy import pool
 from sqlalchemy.ext.asyncio import async_engine_from_config
 
 from alembic import context
-from src.models import Base, Category, Offer, OfferItem, Product, ProductCategory, Review
 from src.config.settings import get_settings
+from src.models import (
+    Base,
+    Category,
+    Offer,
+    OfferItem,
+    OfferReservation,
+    Product,
+    ProductCategory,
+    Review,
+)
 
 config = context.config
 
 # Inject database URL from settings
+# Import models so Alembic sees the full metadata graph.
+_ = (Category, Offer, OfferItem, OfferReservation, Product, ProductCategory, Review)
+
 settings = get_settings()
 config.set_main_option("sqlalchemy.url", settings.database_url)
 

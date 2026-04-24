@@ -78,3 +78,7 @@ def forbidden(detail: str) -> HTTPException:
 
 def conflict(detail: str) -> HTTPException:
   return HTTPException(status_code=status.HTTP_409_CONFLICT, detail=detail)
+
+
+def service_unavailable(detail: str) -> HTTPException:
+  return HTTPException(status_code=status.HTTP_503_SERVICE_UNAVAILABLE, detail=detail)

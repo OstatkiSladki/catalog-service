@@ -18,6 +18,16 @@ class Settings(BaseSettings):
 
   host: str = Field(default="0.0.0.0")
   port: int = Field(default=8002)
+  grpc_host: str = Field(default="0.0.0.0")
+  grpc_port: int = Field(default=50054)
+  grpc_venue_service_host: str = Field(default="venue-service")
+  grpc_venue_service_port: int = Field(default=50052)
+  grpc_order_service_host: str = Field(default="order-service")
+  grpc_order_service_port: int = Field(default=50051)
+  grpc_startup_check_timeout: float = Field(default=5.0)
+  grpc_circuit_breaker_failure_threshold: int = Field(default=5)
+  grpc_circuit_breaker_reset_timeout: float = Field(default=30.0)
+  grpc_startup_checks_enabled: bool = Field(default=True)
 
   database_url: str = Field(
     default="postgresql+asyncpg://catalog:catalog@localhost:5432/db_catalog"

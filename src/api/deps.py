@@ -13,6 +13,7 @@ from src.repositories.offer_repository import OfferRepository
 from src.repositories.product_repository import ProductRepository
 from src.repositories.review_repository import ReviewRepository
 from src.schemas.auth import StaffRole, UsersRole
+from src.grpc.clients import OrderQueryClient, VenueDirectoryClient
 
 
 x_user_id_header = APIKeyHeader(name="X-User-ID", scheme_name="X-User-ID", auto_error=False)
@@ -34,6 +35,19 @@ class InternalAuthHeaders(BaseModel):
     is_verified: bool
     venue_id: int | None = None
     request_id: str
+
+    @property
+    def user_role(self) -> str:
+        return self.role.value
+
+    @property
+    def user_venue_id(self) -> int | None:
+        return self.venue_id
+
+
+class IdentityContext(InternalAuthHeaders):
+    def __init__(self, *, user_role: str, user_venue_id: int | None = None, **data):
+        super().__init__(role=user_role, venue_id=user_venue_id, **data)
 
 
 def _parse_bool_header(name: str, value: str | None, request_id: str) -> bool:
@@ -178,3 +192,9 @@ def get_offer_repository(session: DbSession) -> OfferRepository:
 
 def get_review_repository(session: DbSession) -> ReviewRepository:
     return ReviewRepository(session)
+
+def get_venue_directory_client(request: Request) -> VenueDirectoryClient:
+    return request.app.state.venue_directory_client
+
+def get_order_query_client(request: Request) -> OrderQueryClient:
+    return request.app.state.order_query_client
