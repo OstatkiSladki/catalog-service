@@ -3,7 +3,7 @@ name = "catalog-service"
 version = "1.0.0"
 description = "Catalog Service - core catalog backend"
 readme = "README.md"
-requires-python = ">=3.12"
+requires-python = ">=3.13"
 dependencies = [
   "fastapi>=0.115.0,<0.116.0",
   "grpcio>=1.78.0",
@@ -40,7 +40,7 @@ asyncio_mode = "auto"
 [tool.ruff]
 line-length = 100
 indent-width = 2
-target-version = "py312"
+target-version = "py313"
 
 [tool.ruff.lint]
 select = ["E", "F", "I", "B", "UP"]
@@ -49,7 +49,7 @@ select = ["E", "F", "I", "B", "UP"]
 "alembic/versions/*.py" = ["E501"]
 
 [tool.mypy]
-python_version = "3.12"
+python_version = "3.13"
 strict = true
 warn_unused_configs = true
 exclude = ["alembic/versions"]

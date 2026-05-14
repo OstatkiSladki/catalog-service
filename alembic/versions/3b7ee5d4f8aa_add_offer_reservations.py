@@ -8,6 +8,7 @@ Create Date: 2026-04-14 00:00:00.000000
 from collections.abc import Sequence
 
 import sqlalchemy as sa
+from sqlalchemy.dialects import postgresql
 
 from alembic import op
 
@@ -18,14 +19,15 @@ depends_on: Sequence[str] | None = None
 
 
 def upgrade() -> None:
-  reservation_status = sa.Enum(
-    "pending",
-    "confirmed",
-    "cancelled",
-    "expired",
-    name="offer_reservation_status",
+  op.execute(
+    """
+    DO $$ BEGIN
+        CREATE TYPE offer_reservation_status AS ENUM ('pending', 'confirmed', 'cancelled', 'expired');
+    EXCEPTION
+        WHEN duplicate_object THEN null;
+    END $$;
+    """
   )
-  reservation_status.create(op.get_bind(), checkfirst=True)
 
   op.create_table(
     "offer_reservations",
@@ -34,7 +36,19 @@ def upgrade() -> None:
     sa.Column("offer_id", sa.BigInteger(), nullable=False),
     sa.Column("quantity", sa.Integer(), nullable=False),
     sa.Column("reservation_owner", sa.BigInteger(), nullable=False),
-    sa.Column("status", reservation_status, server_default="pending", nullable=False),
+    sa.Column(
+      "status",
+      postgresql.ENUM(
+        "pending",
+        "confirmed",
+        "cancelled",
+        "expired",
+        name="offer_reservation_status",
+        create_type=False,
+      ),
+      server_default="pending",
+      nullable=False,
+    ),
     sa.Column("expires_at", sa.DateTime(timezone=True), nullable=False),
     sa.Column(
       "created_at",
@@ -54,4 +68,4 @@ def downgrade() -> None:
   op.drop_index(op.f("ix_offer_reservations_expires_at"), table_name="offer_reservations")
   op.drop_index(op.f("ix_offer_reservations_offer_id"), table_name="offer_reservations")
   op.drop_table("offer_reservations")
-  sa.Enum(name="offer_reservation_status").drop(op.get_bind(), checkfirst=True)
+  op.execute("DROP TYPE IF EXISTS offer_reservation_status")

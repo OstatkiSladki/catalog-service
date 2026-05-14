@@ -21,18 +21,35 @@ def create_app(settings: Settings | None = None) -> FastAPI:
 
   @asynccontextmanager
   async def lifespan(app: FastAPI) -> AsyncIterator[None]:
+    import asyncio
+    import logging
+
+    logger = logging.getLogger(__name__)
+
     session_manager = DatabaseSessionManager.from_settings(app_settings)
     app.state.session_manager = session_manager
     venue_directory_client = VenueDirectoryClient()
     order_query_client = OrderQueryClient()
     app.state.venue_directory_client = venue_directory_client
     app.state.order_query_client = order_query_client
-    if app_settings.grpc_startup_checks_enabled:
-      await venue_directory_client.wait_until_serving()
-      await order_query_client.wait_until_serving()
+
     grpc_server, grpc_health = await start_grpc_server(session_manager)
     app.state.grpc_server = grpc_server
     app.state.grpc_health = grpc_health
+
+    if app_settings.grpc_startup_checks_enabled:
+      results = await asyncio.gather(
+        venue_directory_client.wait_until_serving(),
+        order_query_client.wait_until_serving(),
+        return_exceptions=True,
+      )
+      for dep_name, result in zip(("venue-directory", "order-query"), results):
+        if isinstance(result, Exception):
+          logger.warning(
+            "gRPC startup health check failed for %s: %s; continuing with lazy reconnect",
+            dep_name,
+            result,
+          )
     try:
       yield
     finally:
